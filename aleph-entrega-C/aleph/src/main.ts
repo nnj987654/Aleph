@@ -1,1 +1,356 @@
-import './styles.css';\n\ntype View = 'home' | 'page' | 'design';\n\ntype TreeNode = {\n  id: string;\n  title: string;\n  kind: 'page' | 'folder';\n  children?: TreeNode[];\n};\n\nconst treeData: TreeNode[] = [\n  {\n    id: 'curso-2026',\n    title: 'Curso 2026',\n    kind: 'folder',\n    children: [\n      {\n        id: 'matematicas',\n        title: 'Matemáticas',\n        kind: 'folder',\n        children: [\n          {\n            id: 'calculo',\n            title: 'Cálculo',\n            kind: 'folder',\n            children: [\n              { id: 'limites', title: 'Límites', kind: 'page' },\n              { id: 'continuidad', title: 'Continuidad', kind: 'page' },\n              { id: 'derivadas', title: 'Derivadas', kind: 'page' },\n              { id: 'integrales', title: 'Integrales', kind: 'page' },\n            ],\n          },\n          { id: 'algebra', title: 'Álgebra', kind: 'page' },\n        ],\n      },\n      {\n        id: 'fisica',\n        title: 'Física',\n        kind: 'folder',\n        children: [{ id: 'mecanica', title: 'Mecánica', kind: 'page' }],\n      },\n    ],\n  },\n];\n\nconst taskList = [\n  'Leer el tema 3 completo',\n  'Resolver los ejercicios 5 al 9',\n  'Repasar la tabla de derivadas',\n];\n\nconst mapPalette = ['#5f73ff', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#f472b6'];\n\nconst state = {\n  activeView: 'page' as View,\n  selectedId: 'derivadas',\n  treeOpen: new Set(['curso-2026', 'matematicas', 'calculo']),\n  collapsedSidebar: false,\n  mapOpen: true,\n  darkMode: false,\n};\n\nfunction icon(name: string): string {\n  const icons: Record<string, string> = {\n    home: '⌂',\n    search: '⌕',\n    star: '★',\n    clock: '◔',\n    page: '▣',\n    folder: '▤',\n    chevron: '›',\n    moon: '☾',\n    dots: '⋯',\n    plus: '+',\n    side: '▤',\n    map: '▦',\n  };\n  return icons[name] ?? '•';\n}\n\nfunction renderTree(nodes: TreeNode[], depth = 0): string {\n  return nodes\n    .map((node) => {\n      const isOpen = state.treeOpen.has(node.id);\n      const isSelected = state.selectedId === node.id;\n      const isFolder = node.kind === 'folder';\n      const children = isFolder && node.children ? renderTree(node.children, depth + 1) : '';\n\n      return `\n        <div class=\"tree-node ${isSelected ? 'selected' : ''}\" data-node-id=\"${node.id}\" data-depth=\"${depth}\" data-kind=\"${node.kind}\">\n          <div class=\"tree-row\" style=\"padding-left: ${depth * 16 + 10}px;\">\n            <button class=\"tree-toggle ${isFolder ? '' : 'hidden'}\" data-action=\"toggle\" data-node-id=\"${node.id}\" aria-label=\"Expandir ${node.title}\">${isFolder ? (isOpen ? icon('chevron') : icon('chevron')) : ''}</button>\n            <span class=\"tree-icon\">${isFolder ? icon('folder') : icon('page')}</span>\n            <button class=\"tree-label\" data-action=\"select\" data-node-id=\"${node.id}\">${node.title}</button>\n            <span class=\"tree-actions\">\n              <button class=\"mini-btn\" data-action=\"add\" data-node-id=\"${node.id}\" title=\"Nuevo hijo\">${icon('plus')}</button>\n              <button class=\"mini-btn\" data-action=\"more\" data-node-id=\"${node.id}\" title=\"Más\">${icon('dots')}</button>\n            </span>\n          </div>\n          ${isFolder && node.children ? `<div class=\"tree-children ${isOpen ? 'open' : ''}\">${children}</div>` : ''}\n        </div>\n      `;\n    })\n    .join('');\n}\n\nfunction renderHome(): string {\n  const cards = [\n    {\n      title: 'Universidad',\n      subtitle: 'Todo tu espacio de un vistazo.',\n      accent: mapPalette[0],\n      children: [\n        { title: 'Matemáticas', accent: mapPalette[1], children: ['Cálculo', 'Álgebra'] },\n        { title: 'Física', accent: mapPalette[2], children: ['Mecánica'] },\n      ],\n    },\n  ];\n\n  return `\n    <section class=\"screen screen-home\">\n      <h1>Universidad</h1>\n      <p class=\"subtitle\">Todo tu espacio de un vistazo. Despliega las tarjetas o entra directamente en cualquier apunte.</p>\n      <div class=\"toolbar-row\">\n        <button class=\"secondary\">Expandir todo</button>\n        <button class=\"secondary\">Contraer todo</button>\n      </div>\n      <div class=\"card-grid\">\n        ${cards\n          .map(\n            (card) => `\n              <article class=\"memory-card\" style=\"--accent:${card.accent}\">\n                <div class=\"memory-head\">\n                  <span class=\"memory-badge\">${icon('folder')}</span>\n                  <button class=\"memory-title\">${card.title}</button>\n                </div>\n                <div class=\"memory-children\">\n                  ${card.children\n                    .map(\n                      (child) => `\n                        <div class=\"memory-child\" style=\"--accent:${child.accent}\">\n                          <span>${child.title}</span>\n                          <small>${child.children.join(' • ')}</small>\n                        </div>\n                      `,\n                    )\n                    .join('')}\n                </div>\n              </article>\n            `,\n          )\n          .join('')}\n      </div>\n    </section>\n  `;\n}\n\nfunction renderPage(): string {\n  const item = taskList.map((task) => {\n    const checked = task.includes('Repasar') ? 'checked' : '';\n    return `\n      <label class=\"task-item ${checked ? 'done' : ''}\">\n        <input type=\"checkbox\" ${checked} />\n        <span>${task}</span>\n      </label>\n    `;\n  });\n\n  return `\n    <article class=\"screen screen-page\">\n      <h1 contenteditable=\"true\" spellcheck=\"false\">Derivadas</h1>\n      <div class=\"chip-row\">\n        <span class=\"chip\">#examen</span>\n        <span class=\"chip\">#repasar</span>\n      </div>\n      <p>La derivada de una función en un punto mide la rapidez con la que cambia su valor. Geométricamente, es la pendiente de la recta tangente a la curva en ese punto.</p>\n      <div class=\"formula\">f′(x) = lím<sub>h→0</sub> (f(x+h) − f(x)) / h</div>\n      <p>Entre sus aplicaciones están el cálculo de velocidades instantáneas, la búsqueda de máximos y mínimos y la aproximación de funciones complicadas mediante rectas.</p>\n      <h2>Para repasar</h2>\n      <div class=\"task-list\">${item.join('')}</div>\n      <div class=\"callout\">\n        <span class=\"icon\">i</span>\n        <span>Pulsa <strong>/</strong> en cualquier línea para insertar tablas, imágenes, PDFs o fórmulas.</span>\n      </div>\n    </article>\n  `;\n}\n\nfunction renderDesign(): string {\n  return `\n    <section class=\"screen screen-design\">\n      <h2>Color</h2>\n      <div class=\"swatches\">\n        ${mapPalette\n          .map(\n            (color) => `\n              <div class=\"swatch\">\n                <i style=\"background:${color}\"></i>\n                <span>${color}</span>\n              </div>\n            `,\n          )\n          .join('')}\n      </div>\n      <h2>Tipografía</h2>\n      <div class=\"type-box\">\n        <p class=\"display\">Título de página · Georgia 38/700</p>\n        <p class=\"section\">Título de sección · Georgia 24/700</p>\n        <p class=\"body\">Texto principal · sistema sans / 17px</p>\n      </div>\n      <h2>Botones y avisos</h2>\n      <div class=\"button-row\">\n        <button class=\"primary\">Nueva página</button>\n        <button class=\"secondary\">Cancelar</button>\n        <button class=\"danger\">Eliminar</button>\n      </div>\n      <div class=\"toast-box\">\n        <span>«Cálculo» y 12 elementos movidos a la papelera</span>\n        <button>Deshacer</button>\n      </div>\n    </section>\n  `;\n}\n\nfunction renderApp(): void {\n  const app = document.querySelector('#app');\n  if (!app) return;\n\n  const mapClass = state.mapOpen ? '' : 'map-hidden';\n  const sidebarClass = state.collapsedSidebar ? 'sidebar-collapsed' : '';\n  const html = `\n    <div class=\"app-shell ${state.darkMode ? 'theme-dark' : 'theme-light'} ${mapClass}\">\n      <aside class=\"sidebar ${sidebarClass}\">\n        <div class=\"sidebar-header\">\n          <div class=\"brand-mark\">A</div>\n          <div class=\"brand-label\">Universidad</div>\n          <button class=\"icon-btn\" data-action=\"toggle-sidebar\" aria-label=\"Contraer sidebar\">${icon('side')}</button>\n        </div>\n        <nav class=\"nav-shortcuts\">\n          <button class=\"nav-item ${state.activeView === 'home' ? 'active' : ''}\" data-action=\"view-home\">${icon('home')}<span>Inicio</span></button>\n          <button class=\"nav-item ${state.activeView === 'page' ? 'active' : ''}\" data-action=\"view-page\">${icon('search')}<span>Buscar</span></button>\n          <button class=\"nav-item ${state.activeView === 'design' ? 'active' : ''}\" data-action=\"view-design\">${icon('star')}<span>Favoritos</span></button>\n          <button class=\"nav-item\" data-action=\"view-page\">${icon('clock')}<span>Recientes</span></button>\n        </nav>\n        <div class=\"tree-panel\">\n          <div class=\"tree-header\">Estructura</div>\n          ${renderTree(treeData)}\n        </div>\n        <div class=\"sidebar-footer\">\n          <button class=\"nav-item\">${icon('page')}<span>Biblioteca</span></button>\n          <button class=\"nav-item\">${icon('dots')}<span>Papelera</span></button>\n          <button class=\"nav-item\">${icon('moon')}<span>Ajustes</span></button>\n        </div>\n      </aside>\n\n      <main class=\"main-panel\">\n        <header class=\"topbar\">\n          <button class=\"icon-btn mobile\" data-action=\"toggle-sidebar\" aria-label=\"Abrir sidebar\">☰</button>\n          <nav class=\"breadcrumbs\" aria-label=\"Breadcrumb\">\n            <span>Universidad</span>\n            <span class=\"crumb-sep\">›</span>\n            <span>Matemáticas</span>\n            <span class=\"crumb-sep\">›</span>\n            <strong>Derivadas</strong>\n          </nav>\n          <span class=\"saved-indicator\">Guardado</span>\n          <div class=\"segmented\" role=\"tablist\" aria-label=\"Vista\">\n            <button class=\"segment ${state.activeView === 'home' ? 'active' : ''}\" data-action=\"view-home\">Inicio</button>\n            <button class=\"segment ${state.activeView === 'page' ? 'active' : ''}\" data-action=\"view-page\">Página</button>\n            <button class=\"segment ${state.activeView === 'design' ? 'active' : ''}\" data-action=\"view-design\">Diseño</button>\n          </div>\n          <button class=\"icon-btn\" data-action=\"toggle-theme\" aria-label=\"Cambiar tema\">${icon('moon')}</button>\n          <button class=\"icon-btn\" data-action=\"toggle-map\" aria-label=\"Abrir mapa\">${icon('map')}</button>\n        </header>\n\n        <div class=\"content-area\">\n          ${state.activeView === 'home' ? renderHome() : state.activeView === 'design' ? renderDesign() : renderPage()}\n        </div>\n      </main>\n\n      <aside class=\"map-panel ${state.mapOpen ? '' : 'hidden'}\">\n        <div class=\"map-header\">\n          <strong>Mapa</strong>\n          <div class=\"map-actions\">\n            <button class=\"mini-btn\">+</button>\n            <button class=\"mini-btn\">−</button>\n            <button class=\"mini-btn\" data-action=\"toggle-map\">×</button>\n          </div>\n        </div>\n        <div class=\"map-cards\">\n          ${renderMapCards(treeData)}\n        </div>\n      </aside>\n    </div>\n  `;\n\n  app.innerHTML = html;\n  bindEvents();\n}\n\nfunction renderMapCards(nodes: TreeNode[], depth = 0): string {\n  return nodes\n    .map((node) => {\n      const isFolder = node.kind === 'folder';\n      const children = isFolder && node.children ? renderMapCards(node.children, depth + 1) : '';\n      const isSelected = state.selectedId === node.id;\n      return `\n        <div class=\"map-card ${isSelected ? 'current' : ''}\" style=\"margin-left:${depth * 8}px; --accent:${mapPalette[depth % mapPalette.length]}\">\n          <div class=\"map-card-head\">\n            <span class=\"map-card-icon\">${isFolder ? icon('folder') : icon('page')}</span>\n            <button class=\"map-card-title\" data-action=\"select\" data-node-id=\"${node.id}\">${node.title}</button>\n            ${isFolder ? '<span class=\"count\">' + (node.children?.length ?? 0) + '</span>' : ''}\n          </div>\n          ${children ? `<div class=\"map-children\">${children}</div>` : ''}\n        </div>\n      `;\n    })\n    .join('');\n}\n\nfunction bindEvents(): void {\n  document.querySelectorAll('[data-action]').forEach((button) => {\n    button.addEventListener('click', (event) => {\n      const target = event.currentTarget as HTMLElement;\n      const action = target.dataset.action;\n\n      switch (action) {\n        case 'toggle-sidebar':\n          state.collapsedSidebar = !state.collapsedSidebar;\n          renderApp();\n          break;\n        case 'toggle-theme':\n          state.darkMode = !state.darkMode;\n          renderApp();\n          break;\n        case 'toggle-map':\n          state.mapOpen = !state.mapOpen;\n          renderApp();\n          break;\n        case 'view-home':\n          state.activeView = 'home';\n          renderApp();\n          break;\n        case 'view-page':\n          state.activeView = 'page';\n          renderApp();\n          break;\n        case 'view-design':\n          state.activeView = 'design';\n          renderApp();\n          break;\n        case 'select': {\n          const nodeId = target.dataset.nodeId;\n          if (nodeId) {\n            state.selectedId = nodeId;\n            renderApp();\n          }\n          break;\n        }\n        case 'toggle': {\n          const nodeId = target.dataset.nodeId;\n          if (!nodeId) break;\n\n          if (state.treeOpen.has(nodeId)) {\n            state.treeOpen.delete(nodeId);\n          } else {\n            state.treeOpen.add(nodeId);\n          }\n          renderApp();\n          break;\n        }\n        default:\n          break;\n      }\n    });\n  });\n}\n\nrenderApp();\n
+import './styles.css';
+
+type View = 'home' | 'page' | 'design';
+
+type TreeNode = {
+  id: string;
+  title: string;
+  kind: 'page' | 'folder';
+  children?: TreeNode[];
+};
+
+const treeData: TreeNode[] = [
+  {
+    id: 'curso-2026',
+    title: 'Curso 2026',
+    kind: 'folder',
+    children: [
+      {
+        id: 'matematicas',
+        title: 'Matemáticas',
+        kind: 'folder',
+        children: [
+          {
+            id: 'calculo',
+            title: 'Cálculo',
+            kind: 'folder',
+            children: [
+              { id: 'limites', title: 'Límites', kind: 'page' },
+              { id: 'continuidad', title: 'Continuidad', kind: 'page' },
+              { id: 'derivadas', title: 'Derivadas', kind: 'page' },
+              { id: 'integrales', title: 'Integrales', kind: 'page' },
+            ],
+          },
+          { id: 'algebra', title: 'Álgebra', kind: 'page' },
+        ],
+      },
+      {
+        id: 'fisica',
+        title: 'Física',
+        kind: 'folder',
+        children: [{ id: 'mecanica', title: 'Mecánica', kind: 'page' }],
+      },
+    ],
+  },
+];
+
+const taskList = [
+  'Leer el tema 3 completo',
+  'Resolver los ejercicios 5 al 9',
+  'Repasar la tabla de derivadas',
+];
+
+const mapPalette = ['#5f73ff', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#f472b6'];
+
+const state = {
+  activeView: 'page' as View,
+  selectedId: 'derivadas',
+  treeOpen: new Set(['curso-2026', 'matematicas', 'calculo']),
+  collapsedSidebar: false,
+  mapOpen: true,
+  darkMode: false,
+};
+
+function icon(name: string): string {
+  const icons: Record<string, string> = {
+    home: '⌂',
+    search: '⌕',
+    star: '★',
+    clock: '◔',
+    page: '▣',
+    folder: '▤',
+    chevron: '›',
+    moon: '☾',
+    dots: '⋯',
+    plus: '+',
+    side: '▤',
+    map: '▦',
+  };
+  return icons[name] ?? '•';
+}
+
+function renderTree(nodes: TreeNode[], depth = 0): string {
+  return nodes
+    .map((node) => {
+      const isOpen = state.treeOpen.has(node.id);
+      const isSelected = state.selectedId === node.id;
+      const isFolder = node.kind === 'folder';
+      const children = isFolder && node.children ? renderTree(node.children, depth + 1) : '';
+
+      return `
+        <div class="tree-node ${isSelected ? 'selected' : ''}" data-node-id="${node.id}" data-depth="${depth}" data-kind="${node.kind}">
+          <div class="tree-row" style="padding-left: ${depth * 16 + 10}px;">
+            <button class="tree-toggle ${isFolder ? '' : 'hidden'}" data-action="toggle" data-node-id="${node.id}" aria-label="Expandir ${node.title}">${isFolder ? (isOpen ? icon('chevron') : icon('chevron')) : ''}</button>
+            <span class="tree-icon">${isFolder ? icon('folder') : icon('page')}</span>
+            <button class="tree-label" data-action="select" data-node-id="${node.id}">${node.title}</button>
+            <span class="tree-actions">
+              <button class="mini-btn" data-action="add" data-node-id="${node.id}" title="Nuevo hijo">${icon('plus')}</button>
+              <button class="mini-btn" data-action="more" data-node-id="${node.id}" title="Más">${icon('dots')}</button>
+            </span>
+          </div>
+          ${isFolder && node.children ? `<div class="tree-children ${isOpen ? 'open' : ''}">${children}</div>` : ''}
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function renderHome(): string {
+  return `
+    <section class="screen screen-home">
+      <h1>Universidad</h1>
+      <p class="subtitle">Todo tu espacio de un vistazo. Despliega las tarjetas o entra directamente en cualquier apunte.</p>
+      <div class="toolbar-row">
+        <button class="secondary">Expandir todo</button>
+        <button class="secondary">Contraer todo</button>
+      </div>
+      <div class="card-grid">
+        <article class="memory-card" style="--accent:#5f73ff">
+          <div class="memory-head">
+            <span class="memory-badge">▤</span>
+            <button class="memory-title">Universidad</button>
+          </div>
+          <div class="memory-children">
+            <div class="memory-child" style="--accent:#8b5cf6">
+              <span>Matemáticas</span>
+              <small>Cálculo • Álgebra</small>
+            </div>
+            <div class="memory-child" style="--accent:#10b981">
+              <span>Física</span>
+              <small>Mecánica</small>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderPage(): string {
+  const item = taskList.map((task) => {
+    const checked = task.includes('Repasar') ? 'checked' : '';
+    return `
+      <label class="task-item ${checked ? 'done' : ''}">
+        <input type="checkbox" ${checked} />
+        <span>${task}</span>
+      </label>
+    `;
+  });
+
+  return `
+    <article class="screen screen-page">
+      <h1 contenteditable="true" spellcheck="false">Derivadas</h1>
+      <div class="chip-row">
+        <span class="chip">#examen</span>
+        <span class="chip">#repasar</span>
+      </div>
+      <p>La derivada de una función en un punto mide la rapidez con la que cambia su valor. Geométricamente, es la pendiente de la recta tangente a la curva en ese punto.</p>
+      <div class="formula">f′(x) = lím<sub>h→0</sub> (f(x+h) − f(x)) / h</div>
+      <p>Entre sus aplicaciones están el cálculo de velocidades instantáneas, la búsqueda de máximos y mínimos y la aproximación de funciones complicadas mediante rectas.</p>
+      <h2>Para repasar</h2>
+      <div class="task-list">${item.join('')}</div>
+      <div class="callout">
+        <span class="icon">i</span>
+        <span>Pulsa <strong>/</strong> en cualquier línea para insertar tablas, imágenes, PDFs o fórmulas.</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderDesign(): string {
+  return `
+    <section class="screen screen-design">
+      <h2>Color</h2>
+      <div class="swatches">
+        <div class="swatch"><i style="background:#5f73ff"></i><span>#5f73ff</span></div>
+        <div class="swatch"><i style="background:#8b5cf6"></i><span>#8b5cf6</span></div>
+        <div class="swatch"><i style="background:#10b981"></i><span>#10b981</span></div>
+        <div class="swatch"><i style="background:#f59e0b"></i><span>#f59e0b</span></div>
+        <div class="swatch"><i style="background:#ef4444"></i><span>#ef4444</span></div>
+        <div class="swatch"><i style="background:#f472b6"></i><span>#f472b6</span></div>
+      </div>
+      <h2>Tipografía</h2>
+      <div class="type-box">
+        <p class="display">Título de página · Georgia 38/700</p>
+        <p class="section">Título de sección · Georgia 24/700</p>
+        <p class="body">Texto principal · sistema sans / 17px</p>
+      </div>
+      <h2>Botones y avisos</h2>
+      <div class="button-row">
+        <button class="primary">Nueva página</button>
+        <button class="secondary">Cancelar</button>
+        <button class="danger">Eliminar</button>
+      </div>
+      <div class="toast-box">
+        <span>«Cálculo» y 12 elementos movidos a la papelera</span>
+        <button>Deshacer</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderMapCards(nodes: TreeNode[], depth = 0): string {
+  return nodes
+    .map((node) => {
+      const isFolder = node.kind === 'folder';
+      const children = isFolder && node.children ? renderMapCards(node.children, depth + 1) : '';
+      const isSelected = state.selectedId === node.id;
+      return `
+        <div class="map-card ${isSelected ? 'current' : ''}" style="margin-left:${depth * 8}px; --accent:${mapPalette[depth % mapPalette.length]}">
+          <div class="map-card-head">
+            <span class="map-card-icon">${isFolder ? icon('folder') : icon('page')}</span>
+            <button class="map-card-title" data-action="select" data-node-id="${node.id}">${node.title}</button>
+            ${isFolder ? '<span class="count">' + (node.children?.length ?? 0) + '</span>' : ''}
+          </div>
+          ${children ? `<div class="map-children">${children}</div>` : ''}
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function renderApp(): void {
+  const app = document.querySelector('#app');
+  if (!app) return;
+
+  const mapClass = state.mapOpen ? '' : 'map-hidden';
+  const sidebarClass = state.collapsedSidebar ? 'sidebar-collapsed' : '';
+  const html = `
+    <div class="app-shell ${state.darkMode ? 'theme-dark' : 'theme-light'} ${mapClass}">
+      <aside class="sidebar ${sidebarClass}">
+        <div class="sidebar-header">
+          <div class="brand-mark">A</div>
+          <div class="brand-label">Universidad</div>
+          <button class="icon-btn" data-action="toggle-sidebar" aria-label="Contraer sidebar">${icon('side')}</button>
+        </div>
+        <nav class="nav-shortcuts">
+          <button class="nav-item ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">${icon('home')}<span>Inicio</span></button>
+          <button class="nav-item ${state.activeView === 'page' ? 'active' : ''}" data-action="view-page">${icon('search')}<span>Buscar</span></button>
+          <button class="nav-item ${state.activeView === 'design' ? 'active' : ''}" data-action="view-design">${icon('star')}<span>Favoritos</span></button>
+          <button class="nav-item" data-action="view-page">${icon('clock')}<span>Recientes</span></button>
+        </nav>
+        <div class="tree-panel">
+          <div class="tree-header">Estructura</div>
+          ${renderTree(treeData)}
+        </div>
+        <div class="sidebar-footer">
+          <button class="nav-item">${icon('page')}<span>Biblioteca</span></button>
+          <button class="nav-item">${icon('dots')}<span>Papelera</span></button>
+          <button class="nav-item">${icon('moon')}<span>Ajustes</span></button>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <button class="icon-btn mobile" data-action="toggle-sidebar" aria-label="Abrir sidebar">☰</button>
+          <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <span>Universidad</span>
+            <span class="crumb-sep">›</span>
+            <span>Matemáticas</span>
+            <span class="crumb-sep">›</span>
+            <strong>Derivadas</strong>
+          </nav>
+          <span class="saved-indicator">Guardado</span>
+          <div class="segmented" role="tablist" aria-label="Vista">
+            <button class="segment ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">Inicio</button>
+            <button class="segment ${state.activeView === 'page' ? 'active' : ''}" data-action="view-page">Página</button>
+            <button class="segment ${state.activeView === 'design' ? 'active' : ''}" data-action="view-design">Diseño</button>
+          </div>
+          <button class="icon-btn" data-action="toggle-theme" aria-label="Cambiar tema">${icon('moon')}</button>
+          <button class="icon-btn" data-action="toggle-map" aria-label="Abrir mapa">${icon('map')}</button>
+        </header>
+
+        <div class="content-area">
+          ${state.activeView === 'home' ? renderHome() : state.activeView === 'design' ? renderDesign() : renderPage()}
+        </div>
+      </main>
+
+      <aside class="map-panel ${state.mapOpen ? '' : 'hidden'}">
+        <div class="map-header">
+          <strong>Mapa</strong>
+          <div class="map-actions">
+            <button class="mini-btn">+</button>
+            <button class="mini-btn">−</button>
+            <button class="mini-btn" data-action="toggle-map">×</button>
+          </div>
+        </div>
+        <div class="map-cards">
+          ${renderMapCards(treeData)}
+        </div>
+      </aside>
+    </div>
+  `;
+
+  app.innerHTML = html;
+  bindEvents();
+}
+
+function bindEvents(): void {
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const target = event.currentTarget as HTMLElement;
+      const action = target.dataset.action;
+
+      switch (action) {
+        case 'toggle-sidebar':
+          state.collapsedSidebar = !state.collapsedSidebar;
+          renderApp();
+          break;
+        case 'toggle-theme':
+          state.darkMode = !state.darkMode;
+          renderApp();
+          break;
+        case 'toggle-map':
+          state.mapOpen = !state.mapOpen;
+          renderApp();
+          break;
+        case 'view-home':
+          state.activeView = 'home';
+          renderApp();
+          break;
+        case 'view-page':
+          state.activeView = 'page';
+          renderApp();
+          break;
+        case 'view-design':
+          state.activeView = 'design';
+          renderApp();
+          break;
+        case 'select': {
+          const nodeId = target.dataset.nodeId;
+          if (nodeId) {
+            state.selectedId = nodeId;
+            renderApp();
+          }
+          break;
+        }
+        case 'toggle': {
+          const nodeId = target.dataset.nodeId;
+          if (!nodeId) break;
+
+          if (state.treeOpen.has(nodeId)) {
+            state.treeOpen.delete(nodeId);
+          } else {
+            state.treeOpen.add(nodeId);
+          }
+          renderApp();
+          break;
+        }
+        default:
+          break;
+      }
+    });
+  });
+}
+
+renderApp();

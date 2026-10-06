@@ -11,8 +11,6 @@
   --border: #dfe2e8;
   --accent: #4f6ef7;
   --accent-soft: rgba(79, 110, 247, 0.12);
-  --success: #23885a;
-  --danger: #c93a3a;
   --shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
@@ -51,8 +49,6 @@ button {
   --border: #2a2f38;
   --accent: #8aa4ff;
   --accent-soft: rgba(138, 164, 255, 0.14);
-  --success: #4cc38a;
-  --danger: #ef7b7b;
   background: var(--bg);
   color: var(--text);
 }
@@ -306,7 +302,7 @@ button {
 .segment.active {
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
 }
 
 .content-area {
@@ -387,7 +383,7 @@ button {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: var(--accent-soft);
+  background: rgba(79, 110, 247, 0.12);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 16px 18px;
@@ -431,8 +427,8 @@ button {
 }
 
 .danger {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: #c93a3a;
+  border-color: #c93a3a;
 }
 
 .card-grid {
@@ -447,7 +443,7 @@ button {
   background: var(--surface);
   border-radius: 12px;
   padding: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
 }
 
 .memory-card .memory-head {
@@ -632,7 +628,6 @@ button {
     inset: 0 auto 0 0;
     width: min(80vw, 320px);
     z-index: 20;
-    transform: translateX(0);
   }
 
   .sidebar-collapsed {
