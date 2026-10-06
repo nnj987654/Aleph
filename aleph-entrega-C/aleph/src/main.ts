@@ -1,18 +1,100 @@
 import './styles.css';
+import { renderIcon, icons } from './icons';
+import { BlockEditor, EditorBlock } from './editor';
 
-type View = 'home' | 'page' | 'design';
+type View = 'home' | 'editor' | 'design';
 
-type TreeNode = {
+interface TreeNode {
   id: string;
   title: string;
   kind: 'page' | 'folder';
-  children?: TreeNode[];
-};
+  children: TreeNode[];
+}
+
+interface AppState {
+  activeView: View;
+  selectedNodeId: string;
+  expandedNodes: Set<string>;
+  sidebarWidth: number;
+  mapOpen: boolean;
+  darkMode: boolean;
+  treeData: TreeNode[];
+  editor: BlockEditor;
+}
+
+const initialBlocks: EditorBlock[] = [
+  {
+    id: 'b1',
+    type: 'heading',
+    level: 1,
+    content: 'Derivadas',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b2',
+    type: 'paragraph',
+    content: 'La derivada de una función en un punto mide la rapidez con la que cambia su valor.',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b3',
+    type: 'paragraph',
+    content: 'Geométricamente, es la pendiente de la recta tangente a la curva en ese punto.',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b4',
+    type: 'heading',
+    level: 2,
+    content: 'Definición formal',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b5',
+    type: 'list',
+    content: 'f′(x) = lím (f(x+h) − f(x)) / h cuando h→0',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b6',
+    type: 'heading',
+    level: 2,
+    content: 'Aplicaciones',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b7',
+    type: 'list',
+    content: 'Cálculo de velocidades instantáneas',
+    indent: 0,
+    children: [],
+  },
+  {
+    id: 'b8',
+    type: 'list',
+    content: 'Búsqueda de máximos y mínimos',
+    indent: 1,
+    children: [],
+  },
+  {
+    id: 'b9',
+    type: 'list',
+    content: 'Aproximación de funciones',
+    indent: 0,
+    children: [],
+  },
+];
 
 const treeData: TreeNode[] = [
   {
-    id: 'curso-2026',
-    title: 'Curso 2026',
+    id: 'universidad',
+    title: 'Universidad',
     kind: 'folder',
     children: [
       {
@@ -25,332 +107,368 @@ const treeData: TreeNode[] = [
             title: 'Cálculo',
             kind: 'folder',
             children: [
-              { id: 'limites', title: 'Límites', kind: 'page' },
-              { id: 'continuidad', title: 'Continuidad', kind: 'page' },
-              { id: 'derivadas', title: 'Derivadas', kind: 'page' },
-              { id: 'integrales', title: 'Integrales', kind: 'page' },
+              { id: 'limites', title: 'Límites', kind: 'page', children: [] },
+              { id: 'continuidad', title: 'Continuidad', kind: 'page', children: [] },
+              { id: 'derivadas', title: 'Derivadas', kind: 'page', children: [] },
+              { id: 'integrales', title: 'Integrales', kind: 'page', children: [] },
             ],
           },
-          { id: 'algebra', title: 'Álgebra', kind: 'page' },
+          { id: 'algebra', title: 'Álgebra', kind: 'page', children: [] },
         ],
       },
       {
         id: 'fisica',
         title: 'Física',
         kind: 'folder',
-        children: [{ id: 'mecanica', title: 'Mecánica', kind: 'page' }],
+        children: [{ id: 'mecanica', title: 'Mecánica', kind: 'page', children: [] }],
       },
     ],
   },
 ];
 
-const taskList = [
-  'Leer el tema 3 completo',
-  'Resolver los ejercicios 5 al 9',
-  'Repasar la tabla de derivadas',
-];
-
-const mapPalette = ['#5f73ff', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#f472b6'];
-
-const state = {
-  activeView: 'page' as View,
-  selectedId: 'derivadas',
-  treeOpen: new Set(['curso-2026', 'matematicas', 'calculo']),
-  collapsedSidebar: false,
+const state: AppState = {
+  activeView: 'editor',
+  selectedNodeId: 'derivadas',
+  expandedNodes: new Set(['universidad', 'matematicas', 'calculo']),
+  sidebarWidth: 280,
   mapOpen: true,
   darkMode: false,
+  treeData,
+  editor: new BlockEditor(initialBlocks),
 };
 
-function icon(name: string): string {
-  const icons: Record<string, string> = {
-    home: '⌂',
-    search: '⌕',
-    star: '★',
-    clock: '◔',
-    page: '▣',
-    folder: '▤',
-    chevron: '›',
-    moon: '☾',
-    dots: '⋯',
-    plus: '+',
-    side: '▤',
-    map: '▦',
-  };
-  return icons[name] ?? '•';
+let resizingSlider = false;
+
+function renderTreeNode(node: TreeNode, depth: number): string {
+  const isOpen = state.expandedNodes.has(node.id);
+  const isSelected = state.selectedNodeId === node.id;
+  const isFolder = node.kind === 'folder';
+
+  const toggleIcon = isOpen ? renderIcon('chevronDown') : renderIcon('chevronRight');
+  const nodeIcon = isFolder ? renderIcon('folder') : renderIcon('file');
+
+  let html = `
+    <div class="tree-node ${isSelected ? 'selected' : ''}" data-node-id="${node.id}">
+      <div class="tree-row" style="--depth: ${depth}">
+        ${isFolder ? `<button class="tree-toggle" data-action="toggle-node" data-node-id="${node.id}" title="Expandir/Contraer">${toggleIcon}</button>` : '<div class="tree-toggle-spacer"></div>'}
+        <div class="tree-icon">${nodeIcon}</div>
+        <button class="tree-label" data-action="select-node" data-node-id="${node.id}">${node.title}</button>
+      </div>
+  `;
+
+  if (isFolder && isOpen && node.children.length > 0) {
+    html += `<div class="tree-children">${node.children.map(child => renderTreeNode(child, depth + 1)).join('')}</div>`;
+  }
+
+  html += `</div>`;
+  return html;
 }
 
-function renderTree(nodes: TreeNode[], depth = 0): string {
-  return nodes
-    .map((node) => {
-      const isOpen = state.treeOpen.has(node.id);
-      const isSelected = state.selectedId === node.id;
-      const isFolder = node.kind === 'folder';
-      const children = isFolder && node.children ? renderTree(node.children, depth + 1) : '';
+function renderTree(): string {
+  return treeData.map(node => renderTreeNode(node, 0)).join('');
+}
 
-      return `
-        <div class="tree-node ${isSelected ? 'selected' : ''}" data-node-id="${node.id}" data-depth="${depth}" data-kind="${node.kind}">
-          <div class="tree-row" style="padding-left: ${depth * 16 + 10}px;">
-            <button class="tree-toggle ${isFolder ? '' : 'hidden'}" data-action="toggle" data-node-id="${node.id}" aria-label="Expandir ${node.title}">${isFolder ? (isOpen ? icon('chevron') : icon('chevron')) : ''}</button>
-            <span class="tree-icon">${isFolder ? icon('folder') : icon('page')}</span>
-            <button class="tree-label" data-action="select" data-node-id="${node.id}">${node.title}</button>
-            <span class="tree-actions">
-              <button class="mini-btn" data-action="add" data-node-id="${node.id}" title="Nuevo hijo">${icon('plus')}</button>
-              <button class="mini-btn" data-action="more" data-node-id="${node.id}" title="Más">${icon('dots')}</button>
-            </span>
-          </div>
-          ${isFolder && node.children ? `<div class="tree-children ${isOpen ? 'open' : ''}">${children}</div>` : ''}
-        </div>
-      `;
-    })
-    .join('');
+function renderEditorBlock(block: EditorBlock): string {
+  const blockClass = `editor-block editor-block-${block.type}`;
+  const indent = block.indent * 20;
+  let content = '';
+
+  if (block.type === 'heading') {
+    const tag = `h${block.level || 1}`;
+    content = `<${tag} class="block-content" contenteditable="true" data-block-id="${block.id}">${block.content}</${tag}>`;
+  } else if (block.type === 'list') {
+    content = `<li class="block-content" contenteditable="true" data-block-id="${block.id}">${block.content}</li>`;
+  } else {
+    content = `<p class="block-content" contenteditable="true" data-block-id="${block.id}">${block.content}</p>`;
+  }
+
+  return `
+    <div class="${blockClass}" data-block-id="${block.id}" style="margin-left: ${indent}px;">
+      <div class="block-drag-handle"></div>
+      ${content}
+      <div class="block-actions">
+        <button class="block-action-btn" data-action="add-block" data-block-id="${block.id}" title="Añadir línea después">+</button>
+        <button class="block-action-btn" data-action="indent-block" data-block-id="${block.id}" title="Sangrar">→</button>
+        <button class="block-action-btn" data-action="dedent-block" data-block-id="${block.id}" title="Desangrar">←</button>
+        <button class="block-action-btn danger" data-action="delete-block" data-block-id="${block.id}" title="Eliminar">×</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderEditor(): string {
+  const blocks = state.editor.getBlocks();
+  return `
+    <div class="editor-container">
+      <div class="editor-content">
+        ${blocks.map(renderEditorBlock).join('')}
+      </div>
+      <button class="add-block-btn" data-action="add-block-bottom">+ Añadir bloque</button>
+    </div>
+  `;
 }
 
 function renderHome(): string {
   return `
-    <section class="screen screen-home">
-      <h1>Universidad</h1>
-      <p class="subtitle">Todo tu espacio de un vistazo. Despliega las tarjetas o entra directamente en cualquier apunte.</p>
-      <div class="toolbar-row">
-        <button class="secondary">Expandir todo</button>
-        <button class="secondary">Contraer todo</button>
+    <div class="home-container">
+      <div class="home-hero">
+        <h1>Universidad</h1>
+        <p>Tu espacio personal para organizar el conocimiento</p>
       </div>
-      <div class="card-grid">
-        <article class="memory-card" style="--accent:#5f73ff">
-          <div class="memory-head">
-            <span class="memory-badge">▤</span>
-            <button class="memory-title">Universidad</button>
-          </div>
-          <div class="memory-children">
-            <div class="memory-child" style="--accent:#8b5cf6">
-              <span>Matemáticas</span>
-              <small>Cálculo • Álgebra</small>
-            </div>
-            <div class="memory-child" style="--accent:#10b981">
-              <span>Física</span>
-              <small>Mecánica</small>
-            </div>
-          </div>
-        </article>
+      <div class="home-grid">
+        <div class="home-card" data-action="select-node" data-node-id="matematicas">
+          <div class="home-card-icon">${renderIcon('folder')}</div>
+          <h3>Matemáticas</h3>
+          <p>Cálculo, Álgebra y más</p>
+        </div>
+        <div class="home-card" data-action="select-node" data-node-id="fisica">
+          <div class="home-card-icon">${renderIcon('folder')}</div>
+          <h3>Física</h3>
+          <p>Mecánica y conceptos</p>
+        </div>
       </div>
-    </section>
-  `;
-}
-
-function renderPage(): string {
-  const item = taskList.map((task) => {
-    const checked = task.includes('Repasar') ? 'checked' : '';
-    return `
-      <label class="task-item ${checked ? 'done' : ''}">
-        <input type="checkbox" ${checked} />
-        <span>${task}</span>
-      </label>
-    `;
-  });
-
-  return `
-    <article class="screen screen-page">
-      <h1 contenteditable="true" spellcheck="false">Derivadas</h1>
-      <div class="chip-row">
-        <span class="chip">#examen</span>
-        <span class="chip">#repasar</span>
-      </div>
-      <p>La derivada de una función en un punto mide la rapidez con la que cambia su valor. Geométricamente, es la pendiente de la recta tangente a la curva en ese punto.</p>
-      <div class="formula">f′(x) = lím<sub>h→0</sub> (f(x+h) − f(x)) / h</div>
-      <p>Entre sus aplicaciones están el cálculo de velocidades instantáneas, la búsqueda de máximos y mínimos y la aproximación de funciones complicadas mediante rectas.</p>
-      <h2>Para repasar</h2>
-      <div class="task-list">${item.join('')}</div>
-      <div class="callout">
-        <span class="icon">i</span>
-        <span>Pulsa <strong>/</strong> en cualquier línea para insertar tablas, imágenes, PDFs o fórmulas.</span>
-      </div>
-    </article>
+    </div>
   `;
 }
 
 function renderDesign(): string {
   return `
-    <section class="screen screen-design">
-      <h2>Color</h2>
-      <div class="swatches">
-        <div class="swatch"><i style="background:#5f73ff"></i><span>#5f73ff</span></div>
-        <div class="swatch"><i style="background:#8b5cf6"></i><span>#8b5cf6</span></div>
-        <div class="swatch"><i style="background:#10b981"></i><span>#10b981</span></div>
-        <div class="swatch"><i style="background:#f59e0b"></i><span>#f59e0b</span></div>
-        <div class="swatch"><i style="background:#ef4444"></i><span>#ef4444</span></div>
-        <div class="swatch"><i style="background:#f472b6"></i><span>#f472b6</span></div>
-      </div>
-      <h2>Tipografía</h2>
-      <div class="type-box">
-        <p class="display">Título de página · Georgia 38/700</p>
-        <p class="section">Título de sección · Georgia 24/700</p>
-        <p class="body">Texto principal · sistema sans / 17px</p>
-      </div>
-      <h2>Botones y avisos</h2>
-      <div class="button-row">
-        <button class="primary">Nueva página</button>
-        <button class="secondary">Cancelar</button>
-        <button class="danger">Eliminar</button>
-      </div>
-      <div class="toast-box">
-        <span>«Cálculo» y 12 elementos movidos a la papelera</span>
-        <button>Deshacer</button>
-      </div>
-    </section>
+    <div class="design-container">
+      <h1>Sistema de diseño</h1>
+      <section>
+        <h2>Colores</h2>
+        <div class="color-grid">
+          <div class="color-swatch" style="--color: #4f6ef7;"><span>#4f6ef7</span></div>
+          <div class="color-swatch" style="--color: #8b5cf6;"><span>#8b5cf6</span></div>
+          <div class="color-swatch" style="--color: #10b981;"><span>#10b981</span></div>
+          <div class="color-swatch" style="--color: #f59e0b;"><span>#f59e0b</span></div>
+          <div class="color-swatch" style="--color: #ef4444;"><span>#ef4444</span></div>
+        </div>
+      </section>
+      <section>
+        <h2>Tipografía</h2>
+        <h3 style="font-family: Georgia; font-size: 2rem; font-weight: 700;">Serif · Georgia</h3>
+        <p style="font-family: system-ui; font-size: 1rem;">Sans-serif · System UI</p>
+      </section>
+    </div>
   `;
 }
 
-function renderMapCards(nodes: TreeNode[], depth = 0): string {
-  return nodes
-    .map((node) => {
-      const isFolder = node.kind === 'folder';
-      const children = isFolder && node.children ? renderMapCards(node.children, depth + 1) : '';
-      const isSelected = state.selectedId === node.id;
-      return `
-        <div class="map-card ${isSelected ? 'current' : ''}" style="margin-left:${depth * 8}px; --accent:${mapPalette[depth % mapPalette.length]}">
-          <div class="map-card-head">
-            <span class="map-card-icon">${isFolder ? icon('folder') : icon('page')}</span>
-            <button class="map-card-title" data-action="select" data-node-id="${node.id}">${node.title}</button>
-            ${isFolder ? '<span class="count">' + (node.children?.length ?? 0) + '</span>' : ''}
-          </div>
-          ${children ? `<div class="map-children">${children}</div>` : ''}
-        </div>
-      `;
-    })
-    .join('');
-}
-
-function renderApp(): void {
+function render(): void {
   const app = document.querySelector('#app');
   if (!app) return;
 
+  const mainContent =
+    state.activeView === 'home'
+      ? renderHome()
+      : state.activeView === 'design'
+        ? renderDesign()
+        : renderEditor();
+
   const mapClass = state.mapOpen ? '' : 'map-hidden';
-  const sidebarClass = state.collapsedSidebar ? 'sidebar-collapsed' : '';
-  const html = `
-    <div class="app-shell ${state.darkMode ? 'theme-dark' : 'theme-light'} ${mapClass}">
-      <aside class="sidebar ${sidebarClass}">
+
+  app.innerHTML = `
+    <div class="app-shell ${state.darkMode ? 'theme-dark' : ''} ${mapClass}">
+      <aside class="sidebar" style="width: ${state.sidebarWidth}px;">
         <div class="sidebar-header">
-          <div class="brand-mark">A</div>
-          <div class="brand-label">Universidad</div>
-          <button class="icon-btn" data-action="toggle-sidebar" aria-label="Contraer sidebar">${icon('side')}</button>
+          <div class="sidebar-brand">A</div>
+          <div class="sidebar-title">Aleph</div>
         </div>
-        <nav class="nav-shortcuts">
-          <button class="nav-item ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">${icon('home')}<span>Inicio</span></button>
-          <button class="nav-item ${state.activeView === 'page' ? 'active' : ''}" data-action="view-page">${icon('search')}<span>Buscar</span></button>
-          <button class="nav-item ${state.activeView === 'design' ? 'active' : ''}" data-action="view-design">${icon('star')}<span>Favoritos</span></button>
-          <button class="nav-item" data-action="view-page">${icon('clock')}<span>Recientes</span></button>
+
+        <nav class="sidebar-nav">
+          <button class="nav-btn ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">${renderIcon('home')}<span>Inicio</span></button>
+          <button class="nav-btn" data-action="view-editor">${renderIcon('file')}<span>Página</span></button>
+          <button class="nav-btn" data-action="view-design">${renderIcon('layout')}<span>Diseño</span></button>
         </nav>
-        <div class="tree-panel">
+
+        <div class="tree-container">
           <div class="tree-header">Estructura</div>
-          ${renderTree(treeData)}
+          <div class="tree-root">${renderTree()}</div>
         </div>
+
         <div class="sidebar-footer">
-          <button class="nav-item">${icon('page')}<span>Biblioteca</span></button>
-          <button class="nav-item">${icon('dots')}<span>Papelera</span></button>
-          <button class="nav-item">${icon('moon')}<span>Ajustes</span></button>
+          <button class="nav-btn">${renderIcon('trash')}<span>Papelera</span></button>
         </div>
       </aside>
+
+      <div class="resize-handle" data-action="start-resize"></div>
 
       <main class="main-panel">
-        <header class="topbar">
-          <button class="icon-btn mobile" data-action="toggle-sidebar" aria-label="Abrir sidebar">☰</button>
-          <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <div class="topbar">
+          <button class="topbar-btn mobile" data-action="toggle-sidebar">${renderIcon('menu')}</button>
+          <nav class="breadcrumbs">
             <span>Universidad</span>
-            <span class="crumb-sep">›</span>
+            <span class="sep">/</span>
             <span>Matemáticas</span>
-            <span class="crumb-sep">›</span>
+            <span class="sep">/</span>
             <strong>Derivadas</strong>
           </nav>
-          <span class="saved-indicator">Guardado</span>
-          <div class="segmented" role="tablist" aria-label="Vista">
-            <button class="segment ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">Inicio</button>
-            <button class="segment ${state.activeView === 'page' ? 'active' : ''}" data-action="view-page">Página</button>
-            <button class="segment ${state.activeView === 'design' ? 'active' : ''}" data-action="view-design">Diseño</button>
+          <div class="topbar-controls">
+            <button class="topbar-btn" data-action="toggle-map">${renderIcon('layout')}</button>
+            <button class="topbar-btn" data-action="toggle-theme">${state.darkMode ? renderIcon('sun') : renderIcon('moon')}</button>
           </div>
-          <button class="icon-btn" data-action="toggle-theme" aria-label="Cambiar tema">${icon('moon')}</button>
-          <button class="icon-btn" data-action="toggle-map" aria-label="Abrir mapa">${icon('map')}</button>
-        </header>
-
-        <div class="content-area">
-          ${state.activeView === 'home' ? renderHome() : state.activeView === 'design' ? renderDesign() : renderPage()}
         </div>
+        <div class="content-area">${mainContent}</div>
       </main>
 
-      <aside class="map-panel ${state.mapOpen ? '' : 'hidden'}">
+      ${state.mapOpen ? `<aside class="map-panel" style="display: ${state.mapOpen ? 'flex' : 'none'};">
         <div class="map-header">
-          <strong>Mapa</strong>
-          <div class="map-actions">
-            <button class="mini-btn">+</button>
-            <button class="mini-btn">−</button>
-            <button class="mini-btn" data-action="toggle-map">×</button>
-          </div>
+          <span>Mapa</span>
+          <button class="map-close" data-action="toggle-map">${renderIcon('x')}</button>
         </div>
-        <div class="map-cards">
-          ${renderMapCards(treeData)}
+        <div class="map-content">
+          <p style="text-align: center; color: var(--text-muted); padding: 20px;">Mapa de contenido</p>
         </div>
-      </aside>
+      </aside>` : ''}
     </div>
   `;
 
-  app.innerHTML = html;
-  bindEvents();
+  attachEventListeners();
 }
 
-function bindEvents(): void {
-  document.querySelectorAll('[data-action]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      const target = event.currentTarget as HTMLElement;
-      const action = target.dataset.action;
+function attachEventListeners(): void {
+  // Navigation
+  document.querySelectorAll('[data-action="view-home"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeView = 'home';
+      render();
+    });
+  });
 
-      switch (action) {
-        case 'toggle-sidebar':
-          state.collapsedSidebar = !state.collapsedSidebar;
-          renderApp();
-          break;
-        case 'toggle-theme':
-          state.darkMode = !state.darkMode;
-          renderApp();
-          break;
-        case 'toggle-map':
-          state.mapOpen = !state.mapOpen;
-          renderApp();
-          break;
-        case 'view-home':
-          state.activeView = 'home';
-          renderApp();
-          break;
-        case 'view-page':
-          state.activeView = 'page';
-          renderApp();
-          break;
-        case 'view-design':
-          state.activeView = 'design';
-          renderApp();
-          break;
-        case 'select': {
-          const nodeId = target.dataset.nodeId;
-          if (nodeId) {
-            state.selectedId = nodeId;
-            renderApp();
-          }
-          break;
-        }
-        case 'toggle': {
-          const nodeId = target.dataset.nodeId;
-          if (!nodeId) break;
+  document.querySelectorAll('[data-action="view-editor"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeView = 'editor';
+      render();
+    });
+  });
 
-          if (state.treeOpen.has(nodeId)) {
-            state.treeOpen.delete(nodeId);
-          } else {
-            state.treeOpen.add(nodeId);
-          }
-          renderApp();
-          break;
+  document.querySelectorAll('[data-action="view-design"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeView = 'design';
+      render();
+    });
+  });
+
+  // Tree operations
+  document.querySelectorAll('[data-action="toggle-node"]').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      const nodeId = (e.currentTarget as HTMLElement).dataset.nodeId;
+      if (nodeId) {
+        if (state.expandedNodes.has(nodeId)) {
+          state.expandedNodes.delete(nodeId);
+        } else {
+          state.expandedNodes.add(nodeId);
         }
-        default:
-          break;
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="select-node"]').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      const nodeId = (e.currentTarget as HTMLElement).dataset.nodeId;
+      if (nodeId) {
+        state.selectedNodeId = nodeId;
+        state.activeView = 'editor';
+        render();
+      }
+    });
+  });
+
+  // Theme toggle
+  document.querySelectorAll('[data-action="toggle-theme"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.darkMode = !state.darkMode;
+      render();
+    });
+  });
+
+  // Map toggle
+  document.querySelectorAll('[data-action="toggle-map"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.mapOpen = !state.mapOpen;
+      render();
+    });
+  });
+
+  // Sidebar resize
+  const resizeHandle = document.querySelector('.resize-handle');
+  if (resizeHandle) {
+    resizeHandle.addEventListener('mousedown', () => {
+      resizingSlider = true;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+  }
+
+  // Editor blocks
+  document.querySelectorAll('[data-action="add-block"]').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      const blockId = (e.currentTarget as HTMLElement).dataset.blockId;
+      if (blockId) {
+        const newBlock: EditorBlock = {
+          id: `b${Date.now()}`,
+          type: 'paragraph',
+          content: '',
+          indent: 0,
+          children: [],
+        };
+        state.editor.addBlock(newBlock);
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="indent-block"]').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      const blockId = (e.currentTarget as HTMLElement).dataset.blockId;
+      if (blockId) {
+        state.editor.indentBlock(blockId);
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="dedent-block"]').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      const blockId = (e.currentTarget as HTMLElement).dataset.blockId;
+      if (blockId) {
+        state.editor.dedentBlock(blockId);
+        render();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-action="delete-block"]').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      const blockId = (e.currentTarget as HTMLElement).dataset.blockId;
+      if (blockId) {
+        state.editor.deleteBlock(blockId);
+        render();
       }
     });
   });
 }
 
-renderApp();
+document.addEventListener('mousemove', (e: MouseEvent) => {
+  if (!resizingSlider) return;
+
+  const newWidth = e.clientX;
+  if (newWidth > 200 && newWidth < 600) {
+    state.sidebarWidth = newWidth;
+    const sidebar = document.querySelector('.sidebar') as HTMLElement;
+    if (sidebar) {
+      sidebar.style.width = `${newWidth}px`;
+    }
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (resizingSlider) {
+    resizingSlider = false;
+    document.body.style.cursor = 'auto';
+    document.body.style.userSelect = 'auto';
+  }
+});
+
+render();
