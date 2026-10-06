@@ -1,380 +1,714 @@
-import './styles.css';
-
-type View = 'home' | 'page' | 'design';
-
-type TreeNode = {
-  id: string;
-  title: string;
-  kind: 'page' | 'folder';
-  children?: TreeNode[];
-};
-
-const treeData: TreeNode[] = [
-  {
-    id: 'curso-2026',
-    title: 'Curso 2026',
-    kind: 'folder',
-    children: [
-      {
-        id: 'matematicas',
-        title: 'Matemáticas',
-        kind: 'folder',
-        children: [
-          {
-            id: 'calculo',
-            title: 'Cálculo',
-            kind: 'folder',
-            children: [
-              { id: 'limites', title: 'Límites', kind: 'page' },
-              { id: 'continuidad', title: 'Continuidad', kind: 'page' },
-              { id: 'derivadas', title: 'Derivadas', kind: 'page' },
-              { id: 'integrales', title: 'Integrales', kind: 'page' },
-            ],
-          },
-          { id: 'algebra', title: 'Álgebra', kind: 'page' },
-        ],
-      },
-      {
-        id: 'fisica',
-        title: 'Física',
-        kind: 'folder',
-        children: [{ id: 'mecanica', title: 'Mecánica', kind: 'page' }],
-      },
-    ],
-  },
-];
-
-const taskList = [
-  'Leer el tema 3 completo',
-  'Resolver los ejercicios 5 al 9',
-  'Repasar la tabla de derivadas',
-];
-
-const mapPalette = ['#5f73ff', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#f472b6'];
-
-const state = {
-  activeView: 'page' as View,
-  selectedId: 'derivadas',
-  treeOpen: new Set(['curso-2026', 'matematicas', 'calculo']),
-  collapsedSidebar: false,
-  mapOpen: true,
-  darkMode: false,
-};
-
-function icon(name: string): string {
-  const icons: Record<string, string> = {
-    home: '⌂',
-    search: '⌕',
-    star: '★',
-    clock: '◔',
-    page: '▣',
-    folder: '▤',
-    chevron: '›',
-    moon: '☾',
-    dots: '⋯',
-    plus: '+',
-    side: '▤',
-    map: '▦',
-  };
-  return icons[name] ?? '•';
+* {
+  box-sizing: border-box;
 }
 
-function renderTree(nodes: TreeNode[], depth = 0): string {
-  return nodes
-    .map((node) => {
-      const isOpen = state.treeOpen.has(node.id);
-      const isSelected = state.selectedId === node.id;
-      const isFolder = node.kind === 'folder';
-      const children = isFolder && node.children ? renderTree(node.children, depth + 1) : '';
-
-      return `
-        <div class="tree-node ${isSelected ? 'selected' : ''}" data-node-id="${node.id}" data-depth="${depth}" data-kind="${node.kind}">
-          <div class="tree-row" style="padding-left: ${depth * 16 + 10}px;">
-            <button class="tree-toggle ${isFolder ? '' : 'hidden'}" data-action="toggle" data-node-id="${node.id}" aria-label="Expandir ${node.title}">${isFolder ? (isOpen ? icon('chevron') : icon('chevron')) : ''}</button>
-            <span class="tree-icon">${isFolder ? icon('folder') : icon('page')}</span>
-            <button class="tree-label" data-action="select" data-node-id="${node.id}">${node.title}</button>
-            <span class="tree-actions">
-              <button class="mini-btn" data-action="add" data-node-id="${node.id}" title="Nuevo hijo">${icon('plus')}</button>
-              <button class="mini-btn" data-action="more" data-node-id="${node.id}" title="Más">${icon('dots')}</button>
-            </span>
-          </div>
-          ${isFolder && node.children ? `<div class="tree-children ${isOpen ? 'open' : ''}">${children}</div>` : ''}
-        </div>
-      `;
-    })
-    .join('');
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-alt: #eceef2;
+  --text: #171a20;
+  --text-muted: #5f6672;
+  --border: #dfe2e8;
+  --accent: #4f6ef7;
+  --accent-soft: rgba(79, 110, 247, 0.12);
+  --success: #23885a;
+  --danger: #c93a3a;
+  --shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
 }
 
-function renderHome(): string {
-  const cards = [
-    {
-      title: 'Universidad',
-      subtitle: 'Todo tu espacio de un vistazo.',
-      accent: mapPalette[0],
-      children: [
-        { title: 'Matemáticas', accent: mapPalette[1], children: ['Cálculo', 'Álgebra'] },
-        { title: 'Física', accent: mapPalette[2], children: ['Mecánica'] },
-      ],
-    },
-  ];
-
-  return `
-    <section class="screen screen-home">
-      <h1>Universidad</h1>
-      <p class="subtitle">Todo tu espacio de un vistazo. Despliega las tarjetas o entra directamente en cualquier apunte.</p>
-      <div class="toolbar-row">
-        <button class="secondary">Expandir todo</button>
-        <button class="secondary">Contraer todo</button>
-      </div>
-      <div class="card-grid">
-        ${cards
-          .map(
-            (card) => `
-              <article class="memory-card" style="--accent:${card.accent}">
-                <div class="memory-head">
-                  <span class="memory-badge">${icon('folder')}</span>
-                  <button class="memory-title">${card.title}</button>
-                </div>
-                <div class="memory-children">
-                  ${card.children
-                    .map(
-                      (child) => `
-                        <div class="memory-child" style="--accent:${child.accent}">
-                          <span>${child.title}</span>
-                          <small>${child.children.join(' • ')}</small>
-                        </div>
-                      `,
-                    )
-                    .join('')}
-                </div>
-              </article>
-            `,
-          )
-          .join('')}
-      </div>
-    </section>
-  `;
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
 }
 
-function renderPage(): string {
-  const item = taskList.map((task) => {
-    const checked = task.includes('Repasar') ? 'checked' : '';
-    return `
-      <label class="task-item ${checked ? 'done' : ''}">
-        <input type="checkbox" ${checked} />
-        <span>${task}</span>
-      </label>
-    `;
-  });
-
-  return `
-    <article class="screen screen-page">
-      <h1 contenteditable="true" spellcheck="false">Derivadas</h1>
-      <div class="chip-row">
-        <span class="chip">#examen</span>
-        <span class="chip">#repasar</span>
-      </div>
-      <p>La derivada de una función en un punto mide la rapidez con la que cambia su valor. Geométricamente, es la pendiente de la recta tangente a la curva en ese punto.</p>
-      <div class="formula">f′(x) = lím<sub>h→0</sub> (f(x+h) − f(x)) / h</div>
-      <p>Entre sus aplicaciones están el cálculo de velocidades instantáneas, la búsqueda de máximos y mínimos y la aproximación de funciones complicadas mediante rectas.</p>
-      <h2>Para repasar</h2>
-      <div class="task-list">${item.join('')}</div>
-      <div class="callout">
-        <span class="icon">i</span>
-        <span>Pulsa <strong>/</strong> en cualquier línea para insertar tablas, imágenes, PDFs o fórmulas.</span>
-      </div>
-    </article>
-  `;
+body {
+  min-height: 100vh;
 }
 
-function renderDesign(): string {
-  return `
-    <section class="screen screen-design">
-      <h2>Color</h2>
-      <div class="swatches">
-        ${mapPalette
-          .map(
-            (color) => `
-              <div class="swatch">
-                <i style="background:${color}"></i>
-                <span>${color}</span>
-              </div>
-            `,
-          )
-          .join('')}
-      </div>
-      <h2>Tipografía</h2>
-      <div class="type-box">
-        <p class="display">Título de página · Georgia 38/700</p>
-        <p class="section">Título de sección · Georgia 24/700</p>
-        <p class="body">Texto principal · sistema sans / 17px</p>
-      </div>
-      <h2>Botones y avisos</h2>
-      <div class="button-row">
-        <button class="primary">Nueva página</button>
-        <button class="secondary">Cancelar</button>
-        <button class="danger">Eliminar</button>
-      </div>
-      <div class="toast-box">
-        <span>«Cálculo» y 12 elementos movidos a la papelera</span>
-        <button>Deshacer</button>
-      </div>
-    </section>
-  `;
+button {
+  font: inherit;
 }
 
-function renderApp(): void {
-  const app = document.querySelector('#app');
-  if (!app) return;
-
-  const mapClass = state.mapOpen ? '' : 'map-hidden';
-  const sidebarClass = state.collapsedSidebar ? 'sidebar-collapsed' : '';
-  const html = `
-    <div class="app-shell ${state.darkMode ? 'theme-dark' : 'theme-light'} ${mapClass}">
-      <aside class="sidebar ${sidebarClass}">
-        <div class="sidebar-header">
-          <div class="brand-mark">A</div>
-          <div class="brand-label">Universidad</div>
-          <button class="icon-btn" data-action="toggle-sidebar" aria-label="Contraer sidebar">${icon('side')}</button>
-        </div>
-        <nav class="nav-shortcuts">
-          <button class="nav-item ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">${icon('home')}<span>Inicio</span></button>
-          <button class="nav-item ${state.activeView === 'page' ? 'active' : ''}" data-action="view-page">${icon('search')}<span>Buscar</span></button>
-          <button class="nav-item ${state.activeView === 'design' ? 'active' : ''}" data-action="view-design">${icon('star')}<span>Favoritos</span></button>
-          <button class="nav-item" data-action="view-page">${icon('clock')}<span>Recientes</span></button>
-        </nav>
-        <div class="tree-panel">
-          <div class="tree-header">Estructura</div>
-          ${renderTree(treeData)}
-        </div>
-        <div class="sidebar-footer">
-          <button class="nav-item">${icon('page')}<span>Biblioteca</span></button>
-          <button class="nav-item">${icon('dots')}<span>Papelera</span></button>
-          <button class="nav-item">${icon('moon')}<span>Ajustes</span></button>
-        </div>
-      </aside>
-
-      <main class="main-panel">
-        <header class="topbar">
-          <button class="icon-btn mobile" data-action="toggle-sidebar" aria-label="Abrir sidebar">☰</button>
-          <nav class="breadcrumbs" aria-label="Breadcrumb">
-            <span>Universidad</span>
-            <span class="crumb-sep">›</span>
-            <span>Matemáticas</span>
-            <span class="crumb-sep">›</span>
-            <strong>Derivadas</strong>
-          </nav>
-          <span class="saved-indicator">Guardado</span>
-          <div class="segmented" role="tablist" aria-label="Vista">
-            <button class="segment ${state.activeView === 'home' ? 'active' : ''}" data-action="view-home">Inicio</button>
-            <button class="segment ${state.activeView === 'page' ? 'active' : ''}" data-action="view-page">Página</button>
-            <button class="segment ${state.activeView === 'design' ? 'active' : ''}" data-action="view-design">Diseño</button>
-          </div>
-          <button class="icon-btn" data-action="toggle-theme" aria-label="Cambiar tema">${icon('moon')}</button>
-          <button class="icon-btn" data-action="toggle-map" aria-label="Abrir mapa">${icon('map')}</button>
-        </header>
-
-        <div class="content-area">
-          ${state.activeView === 'home' ? renderHome() : state.activeView === 'design' ? renderDesign() : renderPage()}
-        </div>
-      </main>
-
-      <aside class="map-panel ${state.mapOpen ? '' : 'hidden'}">
-        <div class="map-header">
-          <strong>Mapa</strong>
-          <div class="map-actions">
-            <button class="mini-btn">+</button>
-            <button class="mini-btn">−</button>
-            <button class="mini-btn" data-action="toggle-map">×</button>
-          </div>
-        </div>
-        <div class="map-cards">
-          ${renderMapCards(treeData)}
-        </div>
-      </aside>
-    </div>
-  `;
-
-  app.innerHTML = html;
-  bindEvents();
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  min-height: 100vh;
 }
 
-function renderMapCards(nodes: TreeNode[], depth = 0): string {
-  return nodes
-    .map((node) => {
-      const isFolder = node.kind === 'folder';
-      const children = isFolder && node.children ? renderMapCards(node.children, depth + 1) : '';
-      const isSelected = state.selectedId === node.id;
-      return `
-        <div class="map-card ${isSelected ? 'current' : ''}" style="margin-left:${depth * 8}px; --accent:${mapPalette[depth % mapPalette.length]}">
-          <div class="map-card-head">
-            <span class="map-card-icon">${isFolder ? icon('folder') : icon('page')}</span>
-            <button class="map-card-title" data-action="select" data-node-id="${node.id}">${node.title}</button>
-            ${isFolder ? '<span class="count">' + (node.children?.length ?? 0) + '</span>' : ''}
-          </div>
-          ${children ? `<div class="map-children">${children}</div>` : ''}
-        </div>
-      `;
-    })
-    .join('');
+.theme-dark {
+  --bg: #101216;
+  --surface: #171a20;
+  --surface-alt: #20242c;
+  --text: #e9ebf0;
+  --text-muted: #98a0ad;
+  --border: #2a2f38;
+  --accent: #8aa4ff;
+  --accent-soft: rgba(138, 164, 255, 0.14);
+  --success: #4cc38a;
+  --danger: #ef7b7b;
+  background: var(--bg);
+  color: var(--text);
 }
 
-function bindEvents(): void {
-  document.querySelectorAll('[data-action]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      const target = event.currentTarget as HTMLElement;
-      const action = target.dataset.action;
-
-      switch (action) {
-        case 'toggle-sidebar':
-          state.collapsedSidebar = !state.collapsedSidebar;
-          renderApp();
-          break;
-        case 'toggle-theme':
-          state.darkMode = !state.darkMode;
-          renderApp();
-          break;
-        case 'toggle-map':
-          state.mapOpen = !state.mapOpen;
-          renderApp();
-          break;
-        case 'view-home':
-          state.activeView = 'home';
-          renderApp();
-          break;
-        case 'view-page':
-          state.activeView = 'page';
-          renderApp();
-          break;
-        case 'view-design':
-          state.activeView = 'design';
-          renderApp();
-          break;
-        case 'select': {
-          const nodeId = target.dataset.nodeId;
-          if (nodeId) {
-            state.selectedId = nodeId;
-            renderApp();
-          }
-          break;
-        }
-        case 'toggle': {
-          const nodeId = target.dataset.nodeId;
-          if (!nodeId) break;
-
-          if (state.treeOpen.has(nodeId)) {
-            state.treeOpen.delete(nodeId);
-          } else {
-            state.treeOpen.add(nodeId);
-          }
-          renderApp();
-          break;
-        }
-        default:
-          break;
-      }
-    });
-  });
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-renderApp();
+.sidebar-collapsed {
+  width: 72px;
+}
+
+.sidebar-header,
+.topbar,
+.map-header,
+.memory-head,
+.tree-row,
+.map-card-head {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-header {
+  gap: 10px;
+  padding: 14px 12px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.brand-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.icon-btn,
+.mini-btn,
+.segment,
+.nav-item,
+.secondary,
+.primary,
+.danger,
+.map-card-title,
+.memory-title,
+.tree-label {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.icon-btn,
+.mini-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.icon-btn:hover,
+.mini-btn:hover,
+.nav-item:hover,
+.secondary:hover,
+.primary:hover,
+.danger:hover,
+.segment:hover {
+  background: var(--surface-alt);
+}
+
+.mobile {
+  display: none;
+}
+
+.nav-shortcuts,
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--text-muted);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.tree-panel {
+  flex: 1;
+  padding: 10px 8px 8px;
+  overflow: auto;
+}
+
+.tree-header {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0 6px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tree-node {
+  display: block;
+}
+
+.tree-row {
+  gap: 6px;
+  min-height: 34px;
+  border-radius: 8px;
+  padding: 4px 6px;
+}
+
+.tree-row:hover {
+  background: var(--surface-alt);
+}
+
+.tree-node.selected .tree-row {
+  background: var(--accent-soft);
+}
+
+.tree-toggle {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.tree-toggle.hidden {
+  visibility: hidden;
+}
+
+.tree-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.tree-label,
+.map-card-title,
+.memory-title {
+  flex: 1;
+  text-align: left;
+  font-weight: 600;
+  padding: 0;
+}
+
+.tree-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+}
+
+.tree-row:hover .tree-actions {
+  opacity: 1;
+}
+
+.tree-children {
+  display: none;
+}
+
+.tree-children.open {
+  display: block;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+}
+
+.main-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.breadcrumbs strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.saved-indicator {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.segmented {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface-alt);
+  border-radius: 10px;
+}
+
+.segment {
+  padding: 6px 12px;
+  border-radius: 7px;
+  color: var(--text-muted);
+}
+
+.segment.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.content-area {
+  flex: 1;
+  overflow: auto;
+}
+
+.screen {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 36px 24px 80px;
+}
+
+.screen h1,
+.screen h2 {
+  margin: 0 0 12px;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.screen h1 {
+  font-size: clamp(2.2rem, 5vw, 3rem);
+}
+
+.screen p {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.08rem;
+  line-height: 1.75;
+  margin: 0 0 18px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.formula {
+  background: var(--surface-alt);
+  padding: 18px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  text-align: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.3rem;
+  margin: 16px 0 18px;
+}
+
+.task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.04rem;
+}
+
+.task-item.done span {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.callout {
+  margin-top: 28px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.callout .icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(79, 110, 247, 0.15);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.subtitle {
+  color: var(--text-muted);
+}
+
+.toolbar-row,
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.secondary,
+.primary,
+.danger {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.memory-card {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.memory-card .memory-head {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.memory-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.memory-title {
+  font-weight: 700;
+}
+
+.memory-children {
+  display: grid;
+  gap: 8px;
+}
+
+.memory-child {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.memory-child span {
+  font-weight: 600;
+  display: block;
+}
+
+.memory-child small {
+  color: var(--text-muted);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.swatch {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.swatch i {
+  display: block;
+  height: 42px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.type-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+
+.display {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.section {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+
+.toast-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 10px;
+  padding: 12px 14px;
+  max-width: 500px;
+}
+
+.toast-box button {
+  background: transparent;
+  border: none;
+  color: currentColor;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.map-panel {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+.map-panel.hidden {
+  display: none;
+}
+
+.map-header {
+  justify-content: space-between;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.map-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.map-cards {
+  padding: 10px 12px 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.map-card {
+  background: var(--surface-alt);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-left: 4px solid var(--accent);
+}
+
+.map-card-head {
+  gap: 8px;
+}
+
+.map-card.current {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.map-card-icon {
+  color: var(--accent);
+}
+
+.count {
+  margin-left: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.map-children {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .map-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(80vw, 320px);
+    z-index: 20;
+    transform: translateX(0);
+  }
+
+  .sidebar-collapsed {
+    width: min(80vw, 320px);
+  }
+
+  .mobile {
+    display: inline-grid;
+  }
+
+  .topbar {
+    gap: 8px;
+  }
+
+  .screen {
+    padding-inline: 14px;
+  }
+}
+
+.theme-dark .memory-card,
+.theme-dark .swatch,
+.theme-dark .type-box,
+.theme-dark .map-card,
+.theme-dark .sidebar,
+.theme-dark .main-panel,
+.theme-dark .topbar,
+.theme-dark .map-panel {
+  background: var(--surface);
+}
+
+.theme-dark .tree-row:hover,
+.theme-dark .nav-item:hover,
+.theme-dark .segment.active,
+.theme-dark .icon-btn:hover,
+.theme-dark .secondary:hover,
+.theme-dark .primary:hover,
+.theme-dark .danger:hover,
+.theme-dark .mini-btn:hover {
+  background: var(--surface-alt);
+}
+
+.theme-dark .memory-child {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.theme-dark .toast-box {
+  background: #e9ebf0;
+  color: #101216;
+}
+
+.theme-dark .saved-indicator,
+.theme-dark .nav-item,
+.theme-dark .chip,
+.theme-dark .crumbs,
+.theme-dark .tree-header,
+.theme-dark .brand-label,
+.theme-dark .tree-icon,
+.theme-dark .tree-toggle {
+  color: var(--text-muted);
+}
+
+.theme-dark .brand-mark,
+.theme-dark .memory-badge {
+  background: rgba(138, 164, 255, 0.2);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(127, 138, 153, 0.35);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
